@@ -11,6 +11,8 @@ from spider_hilife import crawl_hilife
 from spider_okmart import crawl_okmart
 from spider_pxmart import crawl_pxmart
 
+last_run_time = datetime.datetime(2000, 1, 1)
+
 app = Flask(__name__)
 DB_FILE = 'events.db'
 
@@ -50,17 +52,46 @@ def fetch_all_events():
 def index():
     return render_template('index.html')
 
+# 記得在檔案上方全域變數區加入這行：
+# last_run_time = datetime.datetime(2000, 1, 1)
+
 @app.route('/api/update')
 def update_events():
+    global last_run_time
+    
+    # 1. 時間檢查：若距離上次更新未滿 12 小時，直接跳過
+    if datetime.datetime.now() - last_run_time < datetime.timedelta(hours=12):
+        return jsonify({"status": "skipped", "message": "距離上次更新不到 12 小時"})
+    
+    # 2. 執行爬蟲
     data = fetch_all_events()
+    
+    # 3. 資料庫更新邏輯
     with sqlite3.connect(DB_FILE) as conn:
         c = conn.cursor()
         c.execute("DELETE FROM promotions") # 清除舊資料
         for item in data:
-            c.execute("INSERT INTO promotions (store, title, img_url, link, category, expiry_date) VALUES (?, ?, ?, ?, ?, ?)",
-                      (item.get('store'), item.get('title'), item.get('img_url'), item.get('link'), item.get('category'), item.get('expiry_date')))
+            c.execute("""INSERT INTO promotions 
+                         (store, title, img_url, link, category, expiry_date) 
+                         VALUES (?, ?, ?, ?, ?, ?)""",
+                      (item.get('store'), item.get('title'), item.get('img_url'), 
+                       item.get('link'), item.get('category'), item.get('expiry_date')))
         conn.commit()
+    
+    # 4. 更新執行時間並回傳結果
+    last_run_time = datetime.datetime.now()
     return jsonify({"status": "success", "count": len(data)})
+
+
+
+
+
+
+
+
+
+
+
 
 @app.route('/api/promotions')
 def get_promotions():
@@ -132,3 +163,9 @@ if __name__ == '__main__':
     init_db()
     print("✅ 系統啟動成功！請開啟瀏覽器訪問: http://127.0.0.1:8080")
     app.run(host='0.0.0.0', port=8080, debug=False)
+
+from datetime import datetime, timedelta
+
+# 紀錄上次爬蟲時間
+last_run_time = datetime(2026, 6, 1)
+
