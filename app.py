@@ -132,22 +132,3 @@ if __name__ == '__main__':
     init_db()
     print("✅ 系統啟動成功！請開啟瀏覽器訪問: http://127.0.0.1:8080")
     app.run(host='0.0.0.0', port=8080, debug=False)
-
-from datetime import datetime, timedelta
-
-# 紀錄上次爬蟲時間
-last_run_time = datetime(2000, 1, 1)
-
-@app.route('/api/update')
-def update_events():
-    global last_run_time
-    # 檢查是否距離上次爬蟲已超過 12 小時
-    if datetime.now() - last_run_time < timedelta(hours=12):
-        return jsonify({"status": "skipped", "message": "距離上次更新不到12小時"})
-    
-    # 執行爬蟲
-    data = fetch_all_events()
-    last_run_time = datetime.now()
-    
-    # (後續資料庫寫入邏輯保持不變)
-    return jsonify({"status": "success", "count": len(data)})
